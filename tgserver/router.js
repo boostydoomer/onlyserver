@@ -1,38 +1,32 @@
 import { Router } from 'express';
-import pool from './db.js';
+import db from './mongodb.js';
 
 const router = Router();
 
 router.post('/entername', async (req, res) => {
     const { name } = req.body;
     try {
-        // Проверяем, существует ли уже имя
-        const checkName = await pool.query(
-            'SELECT * FROM modelname WHERE name ILIKE $1',
-            [name]
-        );
-
-        if (checkName.rows.length > 0) {
+        const existingName = await db.collection('modelname').findOne({ name });
+        if (existingName) {
             return res.status(400).json({ message: 'Данный аккаунт уже есть в базе данных' });
         }
-
-        // Вставляем новую запись
-        const newEntry = await pool.query(
-            'INSERT INTO modelname (name) VALUES ($1) RETURNING *',
-            [name]
-        );
-
-        res.json(newEntry.rows[0]);
+        const newEntry = await db.collection('modelname').insertOne({ name });
+        res.json(newEntry.ops);
     } catch (err) {
         console.error(err.message);
-        return res.status(500).json({ message: 'Сервер не работает :( скорее всего сейчас ночь и мой сервер просто выключен' });
+        res.status(500).json({ message: 'Произошла ошибка при добавлении имени' });
     }
 });
 
 router.post('/like', async (req, res) => {
     try {
-        // Увеличиваем счетчик лайков на +1
-        await pool.query('UPDATE likes SET counter = counter + 1');
+        let like = await db.collection('like').findOne();
+        
+        if (!like) {
+            like = await db.collection('like').insertOne({ counter: 1 });
+        } else {
+            await db.collection('like').updateOne({}, { $inc: { counter: 1 } });
+        }
 
         res.status(200).json({ message: 'Лайк успешно увеличен на +1' });
     } catch (err) {
