@@ -12,6 +12,11 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/auth', MainRouter);
 
+app.use((req, res, next) => {
+    res.setHeader('Content-Security-Policy', 'upgrade-insecure-requests');
+    next();
+});
+
 async function start() {
     try {
         app.listen(PORT, ()=> console.log(`сервер запущен на ${PORT} порту`))
